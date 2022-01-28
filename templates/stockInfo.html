@@ -1,0 +1,219 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Stock Info
+{% endblock %}
+
+{% block main %}
+<!-- Include chart.js package -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Include date-time adaptor package-->
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<!--<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@1.0.0"></script>  // moment date adapter -->
+
+{% if error %}
+<p class=error><strong>Error: {{ error }}</strong></p>
+{% endif %}
+
+<h3>Stock Details for {{ symbol_info["symbol"] }}</h3>
+<div>
+<table class="table table-striped">
+    <thead>
+        <tr class="bold">
+            <td>Category</td>
+            <td>Description</td>
+        <tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td class="bold">Name</td><td>{{ symbol_info["longName"] }}</td>
+        </tr>
+        <tr>
+            <td class="bold">Sector</td><td>{{ symbol_info["sector"] }}</td>
+        </tr>
+        <tr>
+            <td class="bold">MarketCap</td><td>{% if symbol_info["marketCap"] is not none %} {{ "${:,.2f}".format(symbol_info["marketCap"]) }} {% endif %}</td>
+        </tr>
+        <tr>
+            <td class="bold">Shares</td><td>{% if symbol_info["sharesOutstanding"] %} {{ "{:,}".format(symbol_info["sharesOutstanding"]) }} {% endif %}</td>
+        </tr>
+        <tr>
+            <td class="bold">Summary</td><td>{{ symbol_info["longBusinessSummary"] }}</td>
+        </tr>
+        <tr>
+            <td class="bold">Website</td><td><a href="{{ symbol_info['website'] }}">{{ symbol_info["website"] }}</a></td>
+        </tr>
+    </tbody>
+</table>
+</div>
+<br />
+<div>
+    <h3>Price Chart</h3>
+    <canvas id="stock-chart" width="1200" height="675"></canvas>
+</div>
+<div>
+    <h3>Investment Options</h3>
+</div>
+<div class="left">
+    <h4>Starting Cash (Capital)</h4>
+    <br />
+    <form action="/results" method="post">
+        <input autocomplete="off" autofocus class="form-control" name="bank" placeholder="Account Value" type="number" min="100" max="9999999999">
+        <!--<h5>Amount of cash (%) to use for trading</h5>
+        <p>As the Account value changes with each sell trigger, the allocation % will be recalculated for the next buy trigger.</p>
+         <input autocomplete="off" class="form-control" name="allocation" placeholder="%" type="number" min="1" max="100"> -->
+</div>
+<div class="left">
+    <br />
+    <h4>Buy and Hold</h4>
+    <p>This option will be used by default to compare its performance with the selected option.</p>
+    <p>This will purchase stock at the start of the time period and will sell all stock at the end of the time period.</p>
+    <br />
+    <h4>Dollar-Cost Averaging (DCA)</h4>
+    <p>This option will be used by default to compare its performance with the selected option.</p>
+    <p>Each month, 1/12th of the initial starting cash will be used to buy the stock, and then sell all stock at the end of the time period.</p>
+    <br />
+</div>
+<div class="left">
+    <h4>Trading</h4>
+    <p>This option will use all account cash to purchase the stock when the buy trigger condition occurs, and then sell all stock when the sell condition occurs.</p>
+    <div class="form-group">
+        <h5>Buy / Sell Condition</h5>
+        <input class="form-control" type="hidden" name="symbol" value="{{ symbol_info['symbol'] }}">
+        <select class="form-control" name="buy-sell">
+            <option value="20">When price crosses above/below the 20 SMA</option>
+            <option value="50">When price crosses above/below the 50 SMA</option>
+            <option value="200">When price crosses above/below the 200 SMA</option>
+        </select>
+    </div>
+        <input class="btn btn-primary" type="submit">
+    </form>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        // Set zero values to null
+        var sma20 = {{ sma20 }};
+        var sma50 = {{ sma50 }};
+        var sma200 = {{ sma200 }};
+
+        sma20 = zeroToNull(sma20);
+        sma50 = zeroToNull(sma50);
+        sma200 = zeroToNull(sma200);
+
+        function zeroToNull(data)
+        {
+            var result = data;
+            for (n in result)
+            {
+                if (result[n] == 0)
+                {
+                    result[n] = null;
+                }
+            }
+            return result;
+        }
+
+        new Chart(document.getElementById('stock-chart'), {
+            data: {
+                labels: {{ date|safe }},
+                datasets: [{
+                    data: {{ price }},
+                    label: 'Symbol Price',
+                    type: 'line',
+                    yAxisID: 'A',
+                    radius: '1',
+                    pointStyle: 'circle',
+                    borderWidth: 2,
+                    borderColor: '#3e95cd',
+                    fill: false,
+                    order: 0
+                }, {
+                    data: {{ volume }},
+                    label: 'Volume',
+                    type: 'bar',
+                    yAxisID: 'B',
+                    backgroundColor: '#72E500',
+                    fill: true,
+                    order: 100
+                }, {
+                    data: sma20,
+                    label: 'Simple Moving Average: 20',
+                    type: 'line',
+                    yAxisID: 'A',
+                    radius: '0',
+                    pointStyle: 'circle',
+                    borderWidth: 1,
+                    borderColor: '#FF2A00',
+                    fill: false,
+                    spanGaps: false,
+                    order: 1
+                }, {
+                    data: sma50,
+                    label: 'Simple Moving Average: 50',
+                    type: 'line',
+                    yAxisID: 'A',
+                    radius: '0',
+                    pointStyle: 'circle',
+                    borderWidth: 1,
+                    borderColor: '#FFCD00',
+                    fill: false,
+                    spanGaps: false,
+                    order: 2
+                }, {
+                    data: sma200,
+                    label: 'Simple Moving Average: 200',
+                    type: 'line',
+                    yAxisID: 'A',
+                    radius: '0',
+                    pointStyle: 'circle',
+                    borderWidth: 1,
+                    borderColor: '#4900FF',
+                    fill: false,
+                    spanGaps: false,
+                    order: 3
+                }]
+            },
+            options: {
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            displayFormats: {
+                                month: 'MMM yyyy'
+                            }
+                        }
+                    },
+                    A: {
+                        type: 'linear',
+                        position: 'left',
+                        display: true,
+                    },
+                    B: {
+                        type: 'linear',
+                        position: 'right',
+                        display: true,
+                        ticks: {
+                            source: 'auto'
+                        }
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Price',
+                        position: 'left'
+                    },
+                    subtitle: {
+                        display: true,
+                        text: 'Volume',
+                        position: 'right'
+                    }
+                }
+            }
+        });
+    </script>
+{% endblock %}

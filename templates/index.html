@@ -1,0 +1,63 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Index
+{% endblock %}
+
+{% block main %}
+{% if error %}
+<p class=error><strong>Error: {{ error }}</strong></p>
+{% endif %}
+<div>
+    <h3>Select a Stock Symbol to begin</h3>
+</div>
+<p>Example: AAPL</p>
+<div class="autocomplete">
+    <form action="/stockInfo" method="post" class="input-group">
+            <input id="search-bar" class="form-control" autofocus autocomplete="off" name="q" placeholder="Stock Symbol" type="text">
+            <div class="input-group-btn">
+                <input type="submit" value="Search" class="btn btn-primary">
+            </div>
+    </form>
+    <div class="results"></div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+
+<script>
+    let input = document.querySelector('#search-bar');
+
+    input.addEventListener('input', function()
+    {
+        $('.results').empty();
+        if (input.value.length > 1 | input.value.length == 0)
+        {
+            $.get('/search?q=' + input.value, function(search)
+            {
+                for (let id in search)
+                {
+                   let stock = search[id].symbol + ": " + search[id].name;
+                   $('.results').append('<div>' + stock + '</div>');
+                }
+            });
+        }
+        $('.autocomplete').css({'box-shadow': '0 0 1px rgba(0, 0, 0, 0.12), 0 1px 1px rgba(0, 0, 0, 0.24)'});
+
+    });
+    $('body').click(function()
+    {
+       $('.results').empty();
+       $('.autocomplete').css({'box-shadow': 'none'});
+    });
+
+    // Credit: Adapted from https://www.youtube.com/watch?v=t1UBXsPXGwI&list=RDCMUC0abAX9cuVB0klLobCewq-g
+    $('.autocomplete').on('click', '.results > div', function()
+    {
+        let text = $(this).text();
+        text = text.slice(0, text.indexOf(":"));
+        $('#search-bar').val(text).focus();
+    });
+</script>
+{% endblock %}

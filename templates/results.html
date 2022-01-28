@@ -1,0 +1,237 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Results
+{% endblock %}
+
+{% block main %}
+<!-- Include chart.js package -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Include date-time adaptor package-->
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+
+<div>
+    <h3>Results for {{ symbol }}</h3>
+</div>
+</div>
+    <canvas id="stock-chart" width="1200" height="675"></canvas>
+</div>
+<br />
+<h4>Strategy: Buy and Hold</h4>
+    {% set hodl_taxable = hodl_gains / 2 %}
+    {% set hodl_after_tax = final_account_value - (hodl_taxable * 0.325) %}
+    <br />
+    <table class="table">
+        <tbody>
+            <tr>
+                <td class="left">Profit/Loss</td><td class="right">${{ hodl_gains }}</td>
+            </tr>
+            <tr>
+                <td class="left">Return on investment (ROI)</td><td class="right">{{ hodl_change_percent }}%</td>
+            </tr>
+            <tr>
+                <td class="left">Average return per year</td><td class="right">{{ avg_return }}%</td>
+            </tr>
+            <tr>
+                <td class="left">Total Account Value</td><td class="right">${{ final_account_value|round(2) }} </td>
+            </tr>
+            <tr>
+                <td class="left">Example taxable profit for stock held 12+ months (@50% of profit)</td><td class="right">{% if hodl_taxable > 0 %} ${{ hodl_taxable|round(2) }} {% else %} $0.00 {% endif %}</td>
+            </tr>
+            <tr>
+                <td class="left">Example Total Account Value after Captial Gains Tax (@32.5% tax)</td><td class="right">${{ hodl_after_tax|round(2) }}</td>
+            </tr>
+        </tbody>
+    </table>
+<h4>Strategy: Dollar Cost Averaging (DCA)</h4>
+{% set dca_taxable = dca_gains / 2 %}
+{% set dca_after_tax = dca_end_value - (dca_taxable * 0.325) %}
+<div>
+    <br />
+    <table class="table">
+        <tbody class="left">
+            <tr>
+                <td class="left">Profit/Loss</td><td class="right">${{ dca_gains }}</td>
+            </tr>
+            <tr>
+                <td class="left">Return on investment (ROI)</td><td class="right">{{ dca_change_percent }}%</td>
+            </tr>
+            <tr>
+                <td class="left">Average return per year</td><td class="right">{{ dca_avg_return }}%</td>
+            </tr>
+            <tr>
+                <td class="left">Total Account Value</td><td class="right">${{ dca_end_value|round(2) }}</td>
+            </tr>
+            <tr>
+                <td class="left">Example taxable profit for stock held 12+ months (@50% of profit)</td><td class="right">{% if dca_taxable > 0 %} ${{ dca_taxable|round(2) }} {% else %} $0.00 {% endif %}</td>
+            </tr>
+            <tr>
+                <td class="left">Example Total Account Value after Captial Gains Tax (@32.5% tax)</td><td class="right">{% if dca_taxable > 0 %} ${{ dca_after_tax|round(2) }} {% else %} {{ dca_end_value }} {% endif %}</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+<h4>Strategy: Trading</h4>
+{% set trade_after_tax = trade_final_account_value - (trade_gains * 0.325) %}
+<div>
+    <br />
+    <table class="table">
+        <tbody>
+            <tr>
+                <td class="left">Number of trades</td><td class="right">{{ trade_count }}</td>
+            </tr>
+            <tr>
+                <td class="left">Profit/Loss</td><td class="right">${{ trade_gains }}</td>
+            </tr>
+            <tr>
+                <td class="left">Return on investment (ROI)</td><td class="right">{{ trade_change_percent }}%</td>
+            </tr>
+            <tr>
+                <td class="left">Average return per year</td><td class="right">{{ trade_avg_return }}%</td>
+            </tr>
+            <tr>
+                <td class="left">Total Account Value</td><td class="right">${{ trade_final_account_value|round(2) }}</td>
+            </tr>
+            <tr>
+                <td class="left">Example taxable profit for stock held 12+ months (@50% of profit)</td><td class="right">${{ trade_gains|round(2) }}</td>
+            </tr>
+            <tr>
+                <td class="left">Example Total Account Value after Captial Gains Tax (@32.5% tax)</td><td class="right">${{ trade_after_tax|round(2) }}</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+<br />
+<div class="left">
+    <p>
+        Disclaimer: See your local Tax Laws to calculate your correct obligations. An investor may get back less than the amount invested. Information on past performance, where given, is not necessarily a guide to future performance. Investment in the securities of smaller companies can involve greater risk than is generally associated with investment in larger, more established companies that can result in significant capital losses that may have a detrimental effect on the value of the investor's account.
+    </p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        // Set zero values to null
+        let moving_average = {{ buy_sell_values }};
+
+        moving_average = zeroToNull(moving_average);
+
+        function zeroToNull(data)
+        {
+            let result = data;
+            for (n in result)
+            {
+                if (result[n] == 0)
+                {
+                    result[n] = null;
+                }
+            }
+            return result;
+        }
+
+        new Chart(document.getElementById('stock-chart'), {
+            data: {
+                labels: {{ date|safe }},
+                datasets: [{
+                    data: {{ price }},
+                    label: 'Symbol Price',
+                    type: 'line',
+                    yAxisID: 'A',
+                    radius: '1',
+                    pointStyle: 'circle',
+                    borderWidth: 2,
+                    borderColor: '#3e95cd',
+                    fill: false,
+                    order: 100
+                }, {
+                    data: {{ hodl_yaxis }},
+                    label: 'Buy and Hold Strategy',
+                    type: 'line',
+                    yAxisID: 'B',
+                    radius: '0',
+                    pointStyle: 'circle',
+                    borderWidth: 1,
+                    borderColor: '#72E500',
+                    fill: false,
+                    spanGaps: false,
+                    order: 30
+                }, {
+                    data: {{ dca_yaxis }},
+                    label: 'Dollar Cost Average Strategy',
+                    type: 'line',
+                    yAxisID: 'B',
+                    radius: '0',
+                    pointStyle: 'circle',
+                    borderWidth: 1,
+                    borderColor: '#ff7a21',
+                    fill: false,
+                    spanGaps: false,
+                    order: 20
+                }, {
+                    data: {{ trade_yaxis }},
+                    label: 'Trade Strategy',
+                    type: 'line',
+                    yAxisID: 'B',
+                    radius: '0',
+                    pointStyle: 'circle',
+                    borderWidth: 1,
+                    borderColor: '#FF0000',
+                    fill: false,
+                    spanGaps: false,
+                    order: 10
+                }, {
+                    data: moving_average,
+                    label: 'Selected Moving Average',
+                    type: 'line',
+                    yAxisID: 'A',
+                    radius: '0',
+                    pointStyle: 'circle',
+                    borderWidth: 1,
+                    borderColor: '#87cfff',
+                    fill: false,
+                    spanGaps: false,
+                    order: 1
+                }]
+            },
+            options: {
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            displayFormats: {
+                                month: 'MMM yyyy'
+                            }
+                        }
+                    },
+                    A: {
+                        type: 'linear',
+                        position: 'left',
+                        display: true,
+                    },
+                    B: {
+                        type: 'linear',
+                        position: 'right',
+                        display: true,
+                        ticks: {
+                            source: 'auto'
+                        }
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Symbol Price',
+                        position: 'left'
+                    },
+                    subtitle: {
+                        display: true,
+                        text: 'Account Value',
+                        position: 'right'
+                    }
+                }
+            }
+        });
+    </script>
+{% endblock %}
